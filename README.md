@@ -1,0 +1,2 @@
+# Sentia
+Algoritmo de IA
