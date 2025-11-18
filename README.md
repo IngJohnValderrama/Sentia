@@ -156,6 +156,8 @@ SentIA/
 3. Realiza tus cambios y haz commit
 4. Envía un pull request explicando las modificaciones
 
+
+
 ---
 
 ## Licencia
