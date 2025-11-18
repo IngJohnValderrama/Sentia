@@ -247,18 +247,16 @@ def to_float(valor):
         return None
 
 # ======================================================
-# 🔹 ENDPOINT 1 — GUARDAR PAYLOAD ORIGINAL DE N8N
-#     (Empleado + Reporte según diagrama)
+# 🔹 ENDPOINT 1 — GESTIONAR EMPLEADOS
 # ======================================================
-@app.post("/api/guardar")
-def guardar(payload: dict = Body(...)):
+@app.post("/api/empleados", status_code=201)
+def guardar_empleado(payload: dict = Body(...)):
     db = SessionLocal()
     try:
         employee_id = payload.get("employee_id")
         if not employee_id:
             raise HTTPException(status_code=400, detail="employee_id es obligatorio")
 
-        # 1) Crear / actualizar Empleado
         empleado = (
             db.query(Empleado)
             .filter(Empleado.documento_Identidad == employee_id)
@@ -279,6 +277,9 @@ def guardar(payload: dict = Body(...)):
                 hobby=payload.get("hobby"),
             )
             db.add(empleado)
+            db.commit()
+            db.refresh(empleado)
+            return {"status": "ok", "message": "Empleado creado exitosamente.", "documento_Identidad": empleado.documento_Identidad}
         else:
             # Opcional: actualizar datos básicos
             empleado.nombre_Completo = payload.get("nombre_completo", empleado.nombre_Completo)
@@ -291,24 +292,43 @@ def guardar(payload: dict = Body(...)):
             empleado.edad = to_int(payload.get("edad")) or empleado.edad
             empleado.correo = payload.get("correo", empleado.correo)
             empleado.hobby = payload.get("hobby", empleado.hobby)
+            db.commit()
+            db.refresh(empleado)
+            return {"status": "ok", "message": "Empleado actualizado exitosamente.", "documento_Identidad": empleado.documento_Identidad}
+    finally:
+        db.close()
 
-        # 2) Crear Reporte
+# ======================================================
+# 🔹 ENDPOINT 2 — CREAR REPORTE
+# ======================================================
+@app.post("/api/reportes", status_code=201)
+def guardar_reporte(payload: dict = Body(...)):
+    db = SessionLocal()
+    try:
+        employee_id = payload.get("employee_id")
+        if not employee_id:
+            raise HTTPException(status_code=400, detail="employee_id es obligatorio")
+
+        # Verificar que el empleado exista
+        empleado = db.query(Empleado).filter(Empleado.documento_Identidad == employee_id).first()
+        if not empleado:
+            raise HTTPException(status_code=404, detail=f"Empleado con ID {employee_id} no encontrado.")
+
         reporte = Reporte(
             documento_Identidad=employee_id,
             nivel_Energia=to_int(payload.get("nivel_energia")),
             horas_Sueño_Promedio=to_float(payload.get("horas_sueno_promedio")),
             como_Se_Siente=payload.get("como_se_siente_hoy"),
-            foto=payload.get("foto_presenta"),
+            foto=payload.get("foto"),
             descripcion=payload.get("descripcion"),
         )
         db.add(reporte)
-
         db.commit()
         db.refresh(reporte)
 
         return {
             "status": "ok",
-            "message": "Empleado y reporte guardados",
+            "message": "Reporte guardado exitosamente.",
             "id_reporte": reporte.id_Reporte,
         }
     finally:
@@ -316,8 +336,8 @@ def guardar(payload: dict = Body(...)):
 
 
 # ======================================================
-# 🔹 ENDPOINT 2 — IA PROPIA (CLASIFICACIÓN DE TEXTO)
-#     (de momento solo devuelve el JSON)
+# 🔹 ENDPOINT 3 — IA PROPIA (CLASIFICACIÓN DE TEXTO)
+#     (solo devuelve el JSON con la predicción)
 # ======================================================
 @app.post("/api/clasificar")
 def clasificar(payload: dict = Body(...)):
@@ -327,15 +347,44 @@ def clasificar(payload: dict = Body(...)):
     texto_o_payload = payload.get("texto", payload)
     emociones = predecir_emociones_texto(texto_o_payload)
 
-    # Si luego quieres guardar en la tabla Resultado, aquí puedes:
-    # - Buscar el último reporte de ese employee_id
-    # - Crear un Resultado con emocion_Principal = max(emociones, key=emociones.get)
-
     return {
         "employee_id": employee_id,
         "source": "ia_propia",
         "emotions": emociones,
     }
+
+# ======================================================
+# 🔹 ENDPOINT 4 — GUARDAR RESULTADO DE LA IA
+# ======================================================
+@app.post("/api/resultados", status_code=201)
+def guardar_resultado(payload: dict = Body(...)):
+    db = SessionLocal()
+    try:
+        id_reporte = payload.get("id_reporte")
+        emociones = payload.get("emotions")
+
+        if not id_reporte or not emociones:
+            raise HTTPException(status_code=400, detail="id_reporte y emotions son obligatorios.")
+
+        # Verificar que el reporte exista
+        reporte = db.query(Reporte).filter(Reporte.id_Reporte == id_reporte).first()
+        if not reporte:
+            raise HTTPException(status_code=404, detail=f"Reporte con ID {id_reporte} no encontrado.")
+
+        resultado = Resultado(
+            id_Reporte=id_reporte,
+            emocion_Principal=max(emociones, key=emociones.get),
+            emocion_Secundaria=sorted(emociones, key=emociones.get, reverse=True)[1],
+            descripcion_General=f"Análisis de texto con modelo LSTM. Principal: {max(emociones, key=emociones.get)}.",
+            ia_Utilizada="IA Propia (LSTM)",
+        )
+        db.add(resultado)
+        db.commit()
+        db.refresh(resultado)
+
+        return {"status": "ok", "message": "Resultado guardado exitosamente.", "id_resultado": resultado.id_Resultado}
+    finally:
+        db.close()
 
 # ======================================================
 # 🔹 RUN

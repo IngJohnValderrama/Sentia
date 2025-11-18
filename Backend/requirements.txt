@@ -6,7 +6,7 @@ python-multipart
 nltk
 pandas
 numpy
-tensorflow
+tensorFlow
 scikit-learn
 PyMySQL
 python-dotenv
