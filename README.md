@@ -38,6 +38,7 @@ Tecnologías utilizadas:
 * FastAPI
 * React 18+
 * n8n
+* ngrok
 * PostgreSQL o MySQL
 * Acceso a API de Gemini y ChatGPT
 
