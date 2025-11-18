@@ -34,7 +34,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 app = FastAPI(title="Backend IA BERT")
 
 # ============================================
-# 🔹 BASE DE DATOS
+#  BASE DE DATOS
 # ============================================
 DB_USER = os.getenv("DB_USER")
 DB_PASS = os.getenv("DB_PASS")
