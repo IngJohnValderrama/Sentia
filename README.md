@@ -2,7 +2,7 @@
 
 ## Nombre del proyecto
 
-**SentIA** – Sistema de Análisis Emocional Inteligente
+**SentIA.** – Sistema de Análisis Emocional Inteligente
 
 ---
 
