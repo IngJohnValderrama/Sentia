@@ -74,5 +74,3 @@ jobs:
         with:
           app-name: 'BackendSentia'
           slot-name: 'Production'
-          package: 'Backend'
-          
