@@ -1,6 +1,7 @@
 import re
 import os
 import nltk
+import logging
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -13,6 +14,9 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout
 
 load_dotenv()
+
+# Logging básico para depuración de payloads
+logging.basicConfig(level=logging.INFO)
 
 from fastapi import FastAPI, Body, HTTPException
 from sqlalchemy import (
@@ -257,6 +261,17 @@ def guardar_empleado(payload: dict = Body(...)):
         if not employee_id:
             raise HTTPException(status_code=400, detail="employee_id es obligatorio")
 
+        # Mapear posibles nombres de campo que envíe el frontend / n8n
+        nombre = (
+            payload.get("nombre_completo")
+            or payload.get("nombre")
+            or payload.get("name")
+            or payload.get("full_name")
+            or payload.get("nombreCompleto")
+        )
+
+        logging.info(f"Guardar empleado payload: employee_id=%s, nombre=%s", employee_id, nombre)
+
         empleado = (
             db.query(Empleado)
             .filter(Empleado.documento_Identidad == employee_id)
@@ -264,10 +279,13 @@ def guardar_empleado(payload: dict = Body(...)):
         )
 
         if not empleado:
+            # Evitar insertar `NULL` en columnas NOT NULL
+            if not nombre:
+                raise HTTPException(status_code=400, detail="nombre_completo es obligatorio al crear un empleado")
             empleado = Empleado(
                 documento_Identidad=employee_id,
                 tipo_Documento=payload.get("tipo_documento", "CC"),
-                nombre_Completo=payload.get("nombre_completo"),
+                nombre_Completo=nombre,
                 genero=payload.get("genero"),
                 empresa=payload.get("empresa"),
                 cargo=payload.get("cargo"),
@@ -281,8 +299,8 @@ def guardar_empleado(payload: dict = Body(...)):
             db.refresh(empleado)
             return {"status": "ok", "message": "Empleado creado exitosamente.", "documento_Identidad": empleado.documento_Identidad}
         else:
-            # Opcional: actualizar datos básicos
-            empleado.nombre_Completo = payload.get("nombre_completo", empleado.nombre_Completo)
+            # Opcional: actualizar datos básicos (acepta nombres alternativos)
+            empleado.nombre_Completo = nombre or empleado.nombre_Completo
             empleado.genero = payload.get("genero", empleado.genero)
             empleado.empresa = payload.get("empresa", empleado.empresa)
             empleado.cargo = payload.get("cargo", empleado.cargo)
@@ -362,6 +380,7 @@ def guardar_resultado(payload: dict = Body(...)):
     try:
         id_reporte = payload.get("id_reporte")
         emociones = payload.get("emotions")
+        ia_utilizada = payload.get("ia_utilizada")
 
         if not id_reporte or not emociones:
             raise HTTPException(status_code=400, detail="id_reporte y emotions son obligatorios.")
@@ -376,7 +395,7 @@ def guardar_resultado(payload: dict = Body(...)):
             emocion_Principal=max(emociones, key=emociones.get),
             emocion_Secundaria=sorted(emociones, key=emociones.get, reverse=True)[1],
             descripcion_General=f"Análisis de texto con modelo LSTM. Principal: {max(emociones, key=emociones.get)}.",
-            ia_Utilizada="IA Propia (LSTM)",
+            ia_Utilizada=ia_utilizada,
         )
         db.add(resultado)
         db.commit()

@@ -22,6 +22,8 @@ function App() {
     textoIdentificacion: "",    
     foto: null,
     autorizacion: false,
+    tipoDocumento: "",
+    numeroDocumento: "",
   });
 
   // Manejo general de cambios
@@ -30,9 +32,15 @@ function App() {
 
     // Validación SOLO letras
     const soloLetras = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]*$/;
+    // Validación SOLO números para número de documento
+    const soloNumeros = /^\d*$/;
 
     if (["name", "empresa", "cargo"].includes(name)) {
       if (!soloLetras.test(value)) return;
+    }
+
+    if (name === "numeroDocumento") {
+      if (!soloNumeros.test(value)) return;
     }
 
     setForm({
@@ -125,6 +133,8 @@ function App() {
           textoIdentificacion: "",
           foto: null,
           autorizacion: false,
+          tipoDocumento: "",
+          numeroDocumento: "",
         });
         setPreview(null);
       } else {
@@ -189,6 +199,34 @@ function App() {
               <input name="empresa" value={form.empresa} onChange={handleChange} required />
             </div>
           </div>
+
+          {/* TIPO DE DOCUMENTO + NÚMERO */}
+          <div className="row">
+            <div className="input-group">
+              <label>Tipo de documento *</label>
+              <select
+                name="tipoDocumento"
+                value={form.tipoDocumento}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Seleccione</option>
+                <option value="cc">C.C.</option>
+                <option value="ti">T.I.</option>
+              </select>
+            </div>
+
+            <div className="input-group">
+              <label>Número de documento *</label>
+              <input
+                name="numeroDocumento"
+                value={form.numeroDocumento}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+
 
           {/* CORREO */}
           <div className="input-group">
